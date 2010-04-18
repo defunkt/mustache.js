@@ -33,6 +33,7 @@ var Mustache = function() {
 
       template = this.render_pragmas(template);
       var html = this.render_section(template, context, partials);
+      html = this.render_inverted_section(html, context, partials);
       if(in_recursion) {
         return this.render_tags(html, context, partials, in_recursion);
       }
@@ -90,6 +91,28 @@ var Mustache = function() {
     },
 
     /*
+      Renders inverted sections
+    */
+    render_inverted_section: function(template, context, partials) {
+      if(template.indexOf(this.otag + "^") == -1) {
+        return template;
+      }
+      var that = this;
+      var regex = new RegExp(this.otag + "\\^(.+)" + this.ctag +
+              "\\s*([\\s\\S]+?)" + this.otag + "\\/\\1" + this.ctag + "\\s*", "mg");
+
+      // for each {{^foo}}{{/foo}} section do...
+      return template.replace(regex, function(match, name, content) {
+        var value = that.find(name, context);
+        if(!value || that.is_array(value) && value.length == 0) {
+          return that.render(content, context, partials, true);
+        } else {
+          return value;
+        }
+      });
+    },
+
+    /*
       Renders boolean and enumerable sections
     */
     render_section: function(template, context, partials) {
@@ -125,7 +148,7 @@ var Mustache = function() {
       var that = this;
 
       var new_regex = function() {
-        return new RegExp(that.otag + "(=|!|>|\\{|%)?([^\/#]+?)\\1?" +
+        return new RegExp(that.otag + "(=|!|>|\\{|%)?([^\/#\^]+?)\\1?" +
           that.ctag + "+", "g");
       };
 

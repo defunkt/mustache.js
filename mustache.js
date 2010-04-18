@@ -32,8 +32,7 @@ var Mustache = function() {
       }
 
       template = this.render_pragmas(template);
-      var html = this.render_section(template, context, partials);
-      html = this.render_inverted_section(html, context, partials);
+      var html = this.render_sections(template, context, partials);
       if(in_recursion) {
         return this.render_tags(html, context, partials, in_recursion);
       }
@@ -91,51 +90,42 @@ var Mustache = function() {
     },
 
     /*
-      Renders inverted sections
+      Renders inverted (^) and normal (#) sections
     */
-    render_inverted_section: function(template, context, partials) {
-      if(template.indexOf(this.otag + "^") == -1) {
+    render_sections: function(template, context, partials) {
+      if(template.indexOf(this.otag + "^") == -1 &&
+          template.indexOf(this.otag + "#") == -1) {
         return template;
       }
-      var that = this;
-      var regex = new RegExp(this.otag + "\\^(.+)" + this.ctag +
-              "\\s*([\\s\\S]+?)" + this.otag + "\\/\\1" + this.ctag + "\\s*", "mg");
 
-      // for each {{^foo}}{{/foo}} section do...
-      return template.replace(regex, function(match, name, content) {
-        var value = that.find(name, context);
-        if(!value || that.is_array(value) && value.length == 0) {
-          return that.render(content, context, partials, true);
-        } else {
-          return value;
-        }
-      });
-    },
-
-    /*
-      Renders boolean and enumerable sections
-    */
-    render_section: function(template, context, partials) {
-      if(template.indexOf(this.otag + "#") == -1) {
-        return template;
-      }
       var that = this;
-      // CSW - Added "+?" so it finds the tighest bound, not the widest
-      var regex = new RegExp(this.otag + "\\#(.+)" + this.ctag +
-              "\\s*([\\s\\S]+?)" + this.otag + "\\/\\1" + this.ctag + "\\s*", "mg");
+      var regex = new RegExp(this.otag + "(\\^|\\#)(.+)" + this.ctag +
+              "\\s*([\\s\\S]+?)" + this.otag + "\\/\\2" + this.ctag +
+               "\\s*", "mg");
 
       // for each {{#foo}}{{/foo}} section do...
-      return template.replace(regex, function(match, name, content) {
+      return template.replace(regex, function(match, type, name, content) {
         var value = that.find(name, context);
-        if(that.is_array(value)) { // Enumerable, Let's loop!
-          return that.map(value, function(row) {
-            return that.render(content, that.merge(context,
-                    that.create_context(row)), partials, true);
-          }).join("");
-        } else if(value) { // boolean section
-          return that.render(content, context, partials, true);
-        } else {
-          return "";
+        if(type == "^") {
+          // Inverted section
+          if(!value || that.is_array(value) && value.length == 0) {
+            // false or empty list, render it
+            return that.render(content, context, partials, true);
+          } else {
+            return value;
+          }
+        } else if(type == "#") {
+          // Normal section
+          if(that.is_array(value)) { // Enumerable, Let's loop!
+            return that.map(value, function(row) {
+              return that.render(content, that.merge(context,
+                      that.create_context(row)), partials, true);
+            }).join("");
+          } else if(value) { // boolean section
+            return that.render(content, context, partials, true);
+          } else {
+            return "";
+          }
         }
       });
     },

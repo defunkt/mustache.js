@@ -109,6 +109,11 @@ var Mustache = function() {
             return that.render(content, that.merge(context,
                     that.create_context(row)), partials, true);
           }).join("");
+        } else if(toString.call(value) === "[object Function]") {
+          // higher order section
+          return value.call(that, content, function(text) {
+            return that.render(text, context, partials, true);
+          })
         } else if(value) { // boolean section
           return that.render(content, context, partials, true);
         } else {
